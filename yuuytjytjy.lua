@@ -2,15 +2,16 @@
     ========================================================================
     SYSTÈME DE BAN CINÉMATIQUE & ULTRA-SPECTACULAIRE (30 SECONDES)
     ========================================================================
-    Version optimisée pour EXÉCUTEURS (Anti-Error & Mouvement Bloqué)
+    Version optimisée pour EXÉCUTEURS (Anti-Error, Anti-Mouvement & Mobile)
     ========================================================================
 ]]
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
+local LocalizationService = game:GetService("LocalizationService")
 
--- Détection ultra-sécurisée du LocalPlayer (Évite l'erreur 'nil with Character')
+-- Détection ultra-sécurisée du LocalPlayer
 local player = Players.LocalPlayer
 while not player do
     task.wait(0.1)
@@ -21,34 +22,108 @@ local playerGui = player:WaitForChild("PlayerGui", 10)
 local camera = workspace.CurrentCamera
 
 -- ==================== CONFIGURATION DU BAN ====================
-local PLATFORM_NAME = "SOFTಸ್ HUB"      -- Le nom de ta plateforme
-local BANNER_NAME = "SOFTಸ್"      -- Le nom du modérateur qui applique le ban
+local PLATFORM_NAME = "SOFTಸ್ HUB"      
+local BANNER_NAME = "SOFTಸ್"      
 
 -- Ressources audio
-local AMBIENT_MUSIC_ID = "rbxassetid://1836294362"        -- Musique permanente sombre
-local LIGHTNING_SOUND_ID = "rbxassetid://124432034597461"   -- Son d'éclair
-local IMPACT_SOUND_ID = "rbxassetid://128356543877971"      -- Son de l'impact majeur
+local AMBIENT_MUSIC_ID = "rbxassetid://1836294362"        
+local LIGHTNING_SOUND_ID = "rbxassetid://124432034597461"   
+local IMPACT_SOUND_ID = "rbxassetid://128356543877971"      
 -- ==============================================================
 
+-- ==================== SYSTÈME DE TRADUCTION ====================
+local playerLocale = "en"
+pcall(function()
+    playerLocale = string.sub(string.lower(LocalizationService.RobloxLocaleId), 1, 2)
+end)
+
+local messages = {
+    fr = {
+        guiTitle = "ACCÈS INTERDIT À VIE",
+        guiDesc = "Vous avez été ban et vous ne pourrez jamais être débanni de cette plateforme :\n[%s]",
+        guiDetails = "Banni : %s\nBanni par : %s",
+        guiTimer = "Déconnexion forcée dans %.1fs...",
+        guiKick = "Déconnexion...",
+        kickHeader = "[ BANNISSEMENT DÉFINITIF ET IRRÉVOCABLE ]",
+        kickDesc = "Vous avez été banni définitivement de la plateforme :",
+        kickBy = "Sanction appliquée par : ",
+        kickFooter = "Toute tentative de reconnexion est vaine. Votre dossier est clos."
+    },
+    en = {
+        guiTitle = "ACCESS DENIED FOR LIFE",
+        guiDesc = "You have been banned and can never be unbanned from this platform:\n[%s]",
+        guiDetails = "Banned: %s\nBanned by: %s",
+        guiTimer = "Forced disconnection in %.1fs...",
+        guiKick = "Disconnecting...",
+        kickHeader = "[ PERMANENT AND IRREVOCABLE BAN ]",
+        kickDesc = "You have been permanently banned from the platform:",
+        kickBy = "Sanction applied by: ",
+        kickFooter = "Any reconnection attempt is futile. Your case is closed."
+    },
+    es = {
+        guiTitle = "ACCESO DENEGADO DE POR VIDA",
+        guiDesc = "Has sido baneado y nunca podrás ser desbaneado de esta plataforma:\n[%s]",
+        guiDetails = "Baneado: %s\nBaneado por: %s",
+        guiTimer = "Desconexión forzada en %.1fs...",
+        guiKick = "Desconectando...",
+        kickHeader = "[ BANEO PERMANENTE E IRREVOCABLE ]",
+        kickDesc = "Has sido baneado permanentemente de la plataforma:",
+        kickBy = "Sanción aplicada por: ",
+        kickFooter = "Cualquier intento de reconexión es inútil. Su expediente está cerrado."
+    },
+    de = {
+        guiTitle = "ZUGANG LEBENSLANG GESPERRT",
+        guiDesc = "Du wurdest gebannt und kannst auf dieser Plattform nie wieder entbannt werden:\n[%s]",
+        guiDetails = "Gebannt: %s\nGebannt von: %s",
+        guiTimer = "Zwangsabtrennung in %.1fs...",
+        guiKick = "Trennen...",
+        kickHeader = "[ DAUERHAFTER UND UNWIDERRUFLICHER BAN ]",
+        kickDesc = "Du wurdest dauerhaft von der Plattform gebannt:",
+        kickBy = "Sanktion angewendet von: ",
+        kickFooter = "Jeder Versuch einer Neuanmeldung ist zwecklos. Ihr Fall ist abgeschlossen."
+    },
+    pt = {
+        guiTitle = "ACESSO NEGADO PARA SEMPRE",
+        guiDesc = "Você foi banido e nunca poderá ser desbanido desta plataforma:\n[%s]",
+        guiDetails = "Banido: %s\nBanido por: %s",
+        guiTimer = "Desconexão forçada em %.1fs...",
+        guiKick = "Desconectando...",
+        kickHeader = "[ BANIMENTO PERMANENTE E IRREVOGÁVEL ]",
+        kickDesc = "Você foi banido permanentemente da plataforma:",
+        kickBy = "Sanção aplicada por: ",
+        kickFooter = "Qualquer tentativa de reconexão é inútil. Seu caso está encerrado."
+    },
+    ru = {
+        guiTitle = "ДОСТУП ЗАКРЫТ НАВСЕГДА",
+        guiDesc = "Вы были забанены и никогда не сможете быть разбанены на этой платформе:\n[%s]",
+        guiDetails = "Забанен: %s\nЗабанен(а): %s",
+        guiTimer = "Принудительное отключение через %.1f сек...",
+        guiKick = "Отключение...",
+        kickHeader = "[ ПОСТОЯННЫЙ И НЕОТЗЫВНЫЙ БАН ]",
+        kickDesc = "Вы были навсегда заблокированы на платформе:",
+        kickBy = "Наказание применил: ",
+        kickFooter = "Любые попытки повторного подключения бесполезны. Ваше дело закрыто."
+    }
+}
+
+local lang = messages[playerLocale] or messages["en"]
+
 -- ==================== BLOCAGE TOTAL DU JOUEUR ====================
--- Cette boucle tourne en tâche de fond pour s'assurer que le joueur reste figé
 local blockThread = task.spawn(function()
     while true do
         local char = player.Character
         if char then
-            -- 1. Ancrage de la pièce maîtresse
             local root = char:FindFirstChild("HumanoidRootPart")
             if root and not root.Anchored then
                 root.Anchored = true
             end
-            -- 2. Désactivation des contrôles physiques de marche/saut
             local hum = char:FindFirstChildOfClass("Humanoid")
             if hum then
                 hum.WalkSpeed = 0
                 hum.JumpPower = 0
             end
         end
-        task.wait(0.1) -- Vérification constante
+        task.wait(0.1) 
     end
 end)
 
@@ -66,7 +141,6 @@ local function muteAllGameSounds()
         end
     end)
 end
-
 muteAllGameSounds()
 
 -- ============ CRÉATION DE L'INTERFACE DE BAN ============
@@ -118,7 +192,6 @@ particleFolder.Parent = rootLayer
 local crackFolder = Instance.new("Folder")
 crackFolder.Parent = rootLayer
 
--- ============ MUSIQUE & EFFETS SONORES DU SCRIPT ============
 local bgMusic = Instance.new("Sound")
 bgMusic.Name = "BanAmbientMusic"
 bgMusic.SoundId = AMBIENT_MUSIC_ID
@@ -139,7 +212,6 @@ local function playOneShot(soundId, volume)
     task.delay(5, function() if s and s.Parent then s:Destroy() end end)
 end
 
--- ============ TREMBLEMENT DE CAMÉRA (SHAKE) ============
 local shakeIntensity = 0
 local shakeLoopRunning = false
 
@@ -162,7 +234,6 @@ local function addShake(amount)
     end
 end
 
--- ============ CRÉATION DES ÉCLAIRS ZIGZAGS ============
 local function toPixel(scaleX, scaleY)
     local size = camera.ViewportSize
     return Vector2.new(scaleX * size.X, scaleY * size.Y)
@@ -222,7 +293,6 @@ local function spawnLightningBolt()
     task.delay(0.5, function() bolt:Destroy() end)
 end
 
--- ============ FLASH & LIGNE DE DÉCHIRURE VISUELLE ============
 local flash = Instance.new("Frame")
 flash.AnchorPoint = Vector2.new(0.5, 0.5)
 flash.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -253,7 +323,6 @@ slashGradient.Color = ColorSequence.new({
 })
 slashGradient.Parent = slash
 
--- ============ ÉTINCELLES EN MOUVEMENT ============
 local function spawnEmber()
     local size = math.random(3, 7)
     local p = Instance.new("Frame")
@@ -306,7 +375,7 @@ local function spawnRadialBurst(count, colorFrom, colorTo)
     end
 end
 
--- ============ LE PANNEAU DE BAN ============
+-- ============ LE PANNEAU DE BAN (ADAPTÉ POUR MOBILE ET PC) ============
 local panelHolder = Instance.new("Frame")
 panelHolder.Name = "PanelHolder"
 panelHolder.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -315,6 +384,11 @@ panelHolder.Size = UDim2.new(0, 0, 0, 0)
 panelHolder.BackgroundTransparency = 1
 panelHolder.ZIndex = 6
 panelHolder.Parent = rootLayer
+
+-- Contrainte de taille maximale pour éviter que ça soit géant sur PC
+local panelConstraint = Instance.new("UISizeConstraint")
+panelConstraint.MaxSize = Vector2.new(680, 390)
+panelConstraint.Parent = panelHolder
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
@@ -344,19 +418,22 @@ local contentLayout = Instance.new("UIListLayout")
 contentLayout.FillDirection = Enum.FillDirection.Vertical
 contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 contentLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-contentLayout.Padding = UDim.new(0, 20)
+contentLayout.Padding = UDim.new(0.04, 0) -- Padding proportionnel
 contentLayout.Parent = content
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(0.9, 0, 0, 50)
+title.Size = UDim2.new(0.9, 0, 0.18, 0)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBlack
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextTransparency = 1
 title.TextScaled = true
-title.Text = "ACCÈS INTERDIT À VIE"
+title.Text = lang.guiTitle
 title.ZIndex = 7
 title.Parent = content
+local titleConstraint = Instance.new("UITextSizeConstraint")
+titleConstraint.MaxTextSize = 45
+titleConstraint.Parent = title
 
 local titleGradient = Instance.new("UIGradient")
 titleGradient.Color = ColorSequence.new({
@@ -374,46 +451,58 @@ titleStroke.Transparency = 1
 titleStroke.Parent = title
 
 local description = Instance.new("TextLabel")
-description.Size = UDim2.new(0.85, 0, 0, 60)
+description.Size = UDim2.new(0.9, 0, 0.25, 0)
 description.BackgroundTransparency = 1
 description.Font = Enum.Font.GothamMedium
 description.TextColor3 = Color3.fromRGB(230, 210, 210)
 description.TextTransparency = 1
 description.TextWrapped = true
-description.TextSize = 18
-description.Text = "Vous avez été ban et vous ne pouvez jamais être débannis de cette plateforme qui s'appelle :\n[" .. PLATFORM_NAME .. "]"
+description.TextScaled = true
+description.Text = string.format(lang.guiDesc, PLATFORM_NAME)
 description.ZIndex = 7
 description.Parent = content
+local descConstraint = Instance.new("UITextSizeConstraint")
+descConstraint.MaxTextSize = 18
+descConstraint.Parent = description
 
 local details = Instance.new("TextLabel")
-details.Size = UDim2.new(0.85, 0, 0, 45)
+details.Size = UDim2.new(0.9, 0, 0.15, 0)
 details.BackgroundTransparency = 1
 details.Font = Enum.Font.GothamBold
 details.TextColor3 = Color3.fromRGB(255, 100, 100)
 details.TextTransparency = 1
-details.TextSize = 16
-details.Text = "Banni : " .. player.Name .. "\nBanni par : " .. BANNER_NAME
+details.TextScaled = true
+details.Text = string.format(lang.guiDetails, player.Name, BANNER_NAME)
 details.ZIndex = 7
 details.Parent = content
+local detailsConstraint = Instance.new("UITextSizeConstraint")
+detailsConstraint.MaxTextSize = 16
+detailsConstraint.Parent = details
 
 local timerLabel = Instance.new("TextLabel")
-timerLabel.Size = UDim2.new(0.85, 0, 0, 20)
+timerLabel.Size = UDim2.new(0.9, 0, 0.08, 0)
 timerLabel.BackgroundTransparency = 1
 timerLabel.Font = Enum.Font.GothamSemibold
 timerLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 timerLabel.TextTransparency = 1
-timerLabel.TextSize = 14
-timerLabel.Text = "Déconnexion forcée dans 25.0s..."
+timerLabel.TextScaled = true
+timerLabel.Text = string.format(lang.guiTimer, 25.0)
 timerLabel.ZIndex = 7
 timerLabel.Parent = content
+local timerConstraint = Instance.new("UITextSizeConstraint")
+timerConstraint.MaxTextSize = 14
+timerConstraint.Parent = timerLabel
 
 local barBg = Instance.new("Frame")
-barBg.Size = UDim2.new(0.7, 0, 0, 8)
+barBg.Size = UDim2.new(0.7, 0, 0.03, 0)
 barBg.BackgroundColor3 = Color3.fromRGB(30, 15, 20)
 barBg.BackgroundTransparency = 1
 barBg.BorderSizePixel = 0
 barBg.ZIndex = 7
 barBg.Parent = content
+local barBgConstraint = Instance.new("UISizeConstraint")
+barBgConstraint.MaxSize = Vector2.new(476, 8)
+barBgConstraint.Parent = barBg
 local barBgCorner = Instance.new("UICorner")
 barBgCorner.CornerRadius = UDim.new(1, 0)
 barBgCorner.Parent = barBg
@@ -437,7 +526,6 @@ end)
 
 -- ==================== SÉQUENCE CINÉMATIQUE (30s) ====================
 
--- Étape 1 : Foudre d'introduction
 task.wait(0.5)
 local crackThread = task.spawn(function()
     for i = 1, 8 do
@@ -448,7 +536,6 @@ local crackThread = task.spawn(function()
 end)
 task.wait(2.5)
 
--- Étape 2 : L'impact colossal
 addShake(MAX_SHAKE)
 playOneShot(IMPACT_SOUND_ID, 0.9)
 
@@ -473,18 +560,15 @@ slashMove.Completed:Wait()
 slash:Destroy()
 flash:Destroy()
 
--- Étape 3 : Révélation du cadre
+-- Ouverture Adaptative Mobile/PC
 addShake(12)
-panelHolder.Size = UDim2.new(0, 680, 0, 390)
-
 local panelGrow = TweenService:Create(panelHolder, TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 680, 0, 390)
+    Size = UDim2.new(0.9, 0, 0.55, 0) -- 90% de la largeur, 55% de la hauteur de l'écran
 })
 panelGrow:Play()
 TweenService:Create(panelUIStroke, TweenInfo.new(1), { Transparency = 0.2 }):Play()
 panelGrow.Completed:Wait()
 
--- Étape 4 : Cascade de texte
 TweenService:Create(title, TweenInfo.new(0.5), { TextTransparency = 0 }):Play()
 TweenService:Create(titleStroke, TweenInfo.new(0.5), { Transparency = 0.2 }):Play()
 task.wait(0.3)
@@ -510,7 +594,7 @@ TweenService:Create(vignette, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.Eas
     BackgroundTransparency = 0.4
 }):Play()
 
--- Étape 5 : Compte à rebours étendu à 30 secondes au total
+-- Compte à rebours localisé
 local totalDuration = 24.5 
 local startTime = os.clock()
 
@@ -519,79 +603,25 @@ while os.clock() - startTime < totalDuration do
     local remaining = math.max(0, totalDuration - elapsed)
     local progress = remaining / totalDuration
     
-    timerLabel.Text = string.format("Fermeture de la connexion dans %.1fs...", remaining)
+    timerLabel.Text = string.format(lang.guiTimer, remaining)
     barFill.Size = UDim2.new(progress, 0, 1, 0)
     
     task.wait(0.05)
 end
 
-timerLabel.Text = "Déconnexion..."
+timerLabel.Text = lang.guiKick
 barFill.Size = UDim2.new(0, 0, 1, 0)
 task.wait(0.5)
 
--- Nettoyage de la boucle de blocage physique avant kick
 task.cancel(blockThread)
 
--- Étape 6 : Expulsion finale
--- Service de localisation Roblox
-local LocalizationService = game:GetService("LocalizationService")
-
--- Détection de la langue du joueur (ex: "fr-fr", "en-us", "es-es")
-local playerLocale = "en"
-pcall(function()
-    playerLocale = string.sub(string.lower(LocalizationService.RobloxLocaleId), 1, 2)
-end)
-
--- Messages traduits selon la langue
-local messages = {
-    fr = {
-        header = "[ BANNISSEMENT DÉFINITIF ET IRRÉVOCABLE ]",
-        desc = "Vous avez été banni définitivement de la plateforme :",
-        by = "Sanction appliquée par : ",
-        footer = "Toute tentative de reconnexion est vaine. Votre dossier est clos."
-    },
-    en = {
-        header = "[ PERMANENT AND IRREVOCABLE BAN ]",
-        desc = "You have been permanently banned from the platform:",
-        by = "Sanction applied by: ",
-        footer = "Any reconnection attempt is futile. Your case is closed."
-    },
-    es = {
-        header = "[ BANEO PERMANENTE E IRREVOCABLE ]",
-        desc = "Has sido baneado permanentemente de la plataforma:",
-        by = "Sanción aplicada por: ",
-        footer = "Cualquier intento de reconexión es inútil. Su expediente está cerrado."
-    },
-    de = {
-        header = "[ DAUERHAFTER UND UNWIDERRUFLICHER BAN ]",
-        desc = "Du wurdest dauerhaft von der Plattform gebannt:",
-        by = "Sanktion angewendet von: ",
-        footer = "Jeder Versuch einer Neuanmeldung ist zwecklos. Ihr Fall ist abgeschlossen."
-    },
-    pt = {
-        header = "[ BANIMENTO PERMANENTE E IRREVOGÁVEL ]",
-        desc = "Você foi banido permanentemente da plataforma:",
-        by = "Sanção aplicada por: ",
-        footer = "Qualquer tentativa de reconexão é inútil. Seu caso está encerrado."
-    },
-    ru = {
-        header = "[ ПОСТОЯННЫЙ И НЕОТЗЫВНЫЙ БАН ]",
-        desc = "Вы были навсегда заблокированы на платформе:",
-        by = "Наказание применил: ",
-        footer = "Любые попытки повторного подключения бесполезны. Ваше дело закрыто."
-    }
-}
-
--- Sélection du message (utilisation de l'anglais par défaut si la langue n'est pas dans la liste)
-local msg = messages[playerLocale] or messages["en"]
-
--- Étape 6 : Expulsion finale multilingue
+-- Étape finale : Kick Multilingue
 player:Kick(
     "\n========================================\n" ..
-    msg.header .. "\n" ..
+    lang.kickHeader .. "\n" ..
     "========================================\n\n" ..
-    msg.desc .. "\n" ..
+    lang.kickDesc .. "\n" ..
     "-> " .. PLATFORM_NAME .. "\n\n" ..
-    msg.by .. BANNER_NAME .. "\n\n" ..
-    msg.footer
+    lang.kickBy .. BANNER_NAME .. "\n\n" ..
+    lang.kickFooter
 )
