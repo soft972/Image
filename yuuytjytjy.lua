@@ -21,8 +21,8 @@ local playerGui = player:WaitForChild("PlayerGui", 10)
 local camera = workspace.CurrentCamera
 
 -- ==================== CONFIGURATION DU BAN ====================
-local PLATFORM_NAME = "TA_PLATEFORME"      -- Le nom de ta plateforme / ton jeu
-local BANNER_NAME = "L'ADMINISTRATEUR"      -- Le nom du modérateur qui applique le ban
+local PLATFORM_NAME = "SOFTಸ್ HUB"      -- Le nom de ta plateforme
+local BANNER_NAME = "SOFTಸ್"      -- Le nom du modérateur qui applique le ban
 
 -- Ressources audio
 local AMBIENT_MUSIC_ID = "rbxassetid://1836294362"        -- Musique permanente sombre
@@ -533,12 +533,65 @@ task.wait(0.5)
 task.cancel(blockThread)
 
 -- Étape 6 : Expulsion finale
+-- Service de localisation Roblox
+local LocalizationService = game:GetService("LocalizationService")
+
+-- Détection de la langue du joueur (ex: "fr-fr", "en-us", "es-es")
+local playerLocale = "en"
+pcall(function()
+    playerLocale = string.sub(string.lower(LocalizationService.RobloxLocaleId), 1, 2)
+end)
+
+-- Messages traduits selon la langue
+local messages = {
+    fr = {
+        header = "[ BANNISSEMENT DÉFINITIF ET IRRÉVOCABLE ]",
+        desc = "Vous avez été banni définitivement de la plateforme :",
+        by = "Sanction appliquée par : ",
+        footer = "Toute tentative de reconnexion est vaine. Votre dossier est clos."
+    },
+    en = {
+        header = "[ PERMANENT AND IRREVOCABLE BAN ]",
+        desc = "You have been permanently banned from the platform:",
+        by = "Sanction applied by: ",
+        footer = "Any reconnection attempt is futile. Your case is closed."
+    },
+    es = {
+        header = "[ BANEO PERMANENTE E IRREVOCABLE ]",
+        desc = "Has sido baneado permanentemente de la plataforma:",
+        by = "Sanción aplicada por: ",
+        footer = "Cualquier intento de reconexión es inútil. Su expediente está cerrado."
+    },
+    de = {
+        header = "[ DAUERHAFTER UND UNWIDERRUFLICHER BAN ]",
+        desc = "Du wurdest dauerhaft von der Plattform gebannt:",
+        by = "Sanktion angewendet von: ",
+        footer = "Jeder Versuch einer Neuanmeldung ist zwecklos. Ihr Fall ist abgeschlossen."
+    },
+    pt = {
+        header = "[ BANIMENTO PERMANENTE E IRREVOGÁVEL ]",
+        desc = "Você foi banido permanentemente da plataforma:",
+        by = "Sanção aplicada por: ",
+        footer = "Qualquer tentativa de reconexão é inútil. Seu caso está encerrado."
+    },
+    ru = {
+        header = "[ ПОСТОЯННЫЙ И НЕОТЗЫВНЫЙ БАН ]",
+        desc = "Вы были навсегда заблокированы на платформе:",
+        by = "Наказание применил: ",
+        footer = "Любые попытки повторного подключения бесполезны. Ваше дело закрыто."
+    }
+}
+
+-- Sélection du message (utilisation de l'anglais par défaut si la langue n'est pas dans la liste)
+local msg = messages[playerLocale] or messages["en"]
+
+-- Étape 6 : Expulsion finale multilingue
 player:Kick(
     "\n========================================\n" ..
-    "[ BANNISSEMENT DÉFINITIF ET IRRÉVOCABLE ]\n" ..
+    msg.header .. "\n" ..
     "========================================\n\n" ..
-    "Vous avez été banni définitivement de la plateforme :\n" ..
+    msg.desc .. "\n" ..
     "-> " .. PLATFORM_NAME .. "\n\n" ..
-    "Sanction appliquée par : " .. BANNER_NAME .. "\n\n" ..
-    "Toute tentative de reconnexion est vaine. Votre dossier est clos."
+    msg.by .. BANNER_NAME .. "\n\n" ..
+    msg.footer
 )
