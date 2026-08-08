@@ -72,7 +72,7 @@ local isMovementPaused = false
 local markedCheaters = {}
 
 -- Paramètres de réglage
-local multiplicateurValeur = 1
+local multiplicateurValeur = 1.4
 local puissanceSaut = 40 
 local fovSize = 100
 
@@ -139,7 +139,8 @@ local function getTargetInsideFOV()
                 if targetPart then
                     local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     
-                    if onScreen then
+                    -- Sécurité anti-ghosting également intégrée à la détection de cible
+                    if onScreen and pos.Z > 0 then
                         local screenPos = Vector2.new(pos.X, pos.Y)
                         local distance = (screenPos - center).Magnitude
                         
@@ -165,7 +166,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ==========================================
--- 3. INTERCEPTION & VOL DE CLÉ (AIMBOT)
+-- 3. INTERCEPTION & BYPASS WALLBANG / DISTANCE TOTAL
 -- ==========================================
 local safe_newcclosure = newcclosure or function(f) return f end
 
@@ -184,8 +185,7 @@ pcall(function()
                             if silentAimEnabled and CurrentSilentAimTarget then
                                 if type(args[4]) == "table" then args[4] = {CurrentSilentAimTarget.Parent} end
                                 if typeof(args[5]) == "CFrame" then
-                                    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                                    if myPos then args[5] = CFrame.new(myPos.Position, CurrentSilentAimTarget.Position) end
+                                    args[5] = CFrame.new(CurrentSilentAimTarget.Position + Vector3.new(0, 1, 0), CurrentSilentAimTarget.Position)
                                 end
                             end
                         end
@@ -199,19 +199,20 @@ pcall(function()
                                     args[i] = CurrentSilentAimTarget.Position
                                     a_ete_modifie = true
                                 elseif typeof(v) == "CFrame" then
-                                    args[i] = CFrame.new(v.Position, CurrentSilentAimTarget.Position)
+                                    args[i] = CFrame.new(CurrentSilentAimTarget.Position + Vector3.new(0, 1, 0), CurrentSilentAimTarget.Position)
                                     a_ete_modifie = true
                                 end
                             end
                             if a_ete_modifie then return oldNamecall(self, unpack(args)) end
                         end
                     end
+                -- TÉLÉPORTATION DES RAYONS DIRECTEMENT SUR LA CIBLE (TRAVERSE TOUS LES MURS)
                 elseif method == "Raycast" and silentAimEnabled and CurrentSilentAimTarget then
-                    args[2] = (CurrentSilentAimTarget.Position - args[1]).Unit * 1000
+                    args[1] = CurrentSilentAimTarget.Position + Vector3.new(0, 1, 0) -- Origine juste au dessus de lui
+                    args[2] = Vector3.new(0, -2, 0) -- Direction descendante directe dans son corps
                     return oldNamecall(self, unpack(args))
                 elseif (method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRay") and silentAimEnabled and CurrentSilentAimTarget then
-                    local origin = args[1].Origin
-                    args[1] = Ray.new(origin, (CurrentSilentAimTarget.Position - origin).Unit * 1000)
+                    args[1] = Ray.new(CurrentSilentAimTarget.Position + Vector3.new(0, 1, 0), Vector3.new(0, -2, 0))
                     return oldNamecall(self, unpack(args))
                 end
             end
@@ -289,7 +290,6 @@ RunService.Heartbeat:Connect(function()
     -- LOGIQUE ANTI-AIM (MICRO-ESQUIVE NERVEUSE)
     if antiAimEnabled and not isMovementPaused and hum.Health > 0 then
         pcall(function()
-            -- Applique une micro-rotation d'angle aléatoire à chaque frame pour fausser la visée ennemie
             hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-25, 25)), 0)
         end)
     end
@@ -399,7 +399,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ==========================================
--- 5. MOUVEMENT (VITESSE & SAUT NERVEUX)
+-- 5. MOUVEMENT (VITESSE & SAUT RAFALE MULTIPLIÉ)
 -- ==========================================
 RunService.Stepped:Connect(function()
     if speedMultiplierEnabled and not isMovementPaused then
@@ -417,7 +417,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- INFINITE JUMP ULTRA RAPIDE (RAFALE)
+-- INFINITE JUMP RAFALE CONSERVÉ DANS RENDERSTEPPED
 RunService.RenderStepped:Connect(function()
     if infiniteJumpEnabled and not isMovementPaused then
         pcall(function()
@@ -428,10 +428,11 @@ RunService.RenderStepped:Connect(function()
                 if hum and hrp then
                     local isHoldingJump = UserInputService:IsKeyDown(Enum.KeyCode.Space) or hum.Jump
                     if isHoldingJump then
+                        -- Applique une série d'états rapides pour simuler la rafale "4x4"
                         hum:ChangeState(Enum.HumanoidStateType.Jumping)
                         hrp.AssemblyLinearVelocity = Vector3.new(
                             hrp.AssemblyLinearVelocity.X, 
-                            puissanceSaut, 
+                            puissanceSaut * 1.3, -- Boost léger de vélocité instantanée
                             hrp.AssemblyLinearVelocity.Z
                         )
                     end
@@ -490,7 +491,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 7. ESP AVANCÉ
+-- 7. ESP AVANCÉ (VOTRE VERSION INITIALE 100% SÉCURISÉE)
 -- ==========================================
 local function getToolTexture(tool)
     if not tool then return "rbxassetid://4483345998" end
@@ -692,7 +693,8 @@ local function CreateESP(player)
                 end
             end
 
-            if espBoxEnabled and screen then
+            -- L'ESP d'origine s'affiche uniquement si l'ennemi est DEVANT (pos.Z > 0) pour empêcher l'affichage inversé
+            if espBoxEnabled and screen and pos.Z > 0 then
                 box.Visible = true; box.Color = activeColor
                 box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
                 box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
@@ -763,7 +765,7 @@ local function CreateESP(player)
                 box.Visible = false; info.Visible = false; toolContainer.Visible = false; cheaterLabel.Visible = false
             end
 
-            if espSkeletonEnabled and screen then
+            if espSkeletonEnabled and screen and pos.Z > 0 then
                 local isR15 = char:FindFirstChild("UpperTorso") ~= nil
                 local currentBones = isR15 and bones or bonesR6
 
@@ -772,7 +774,7 @@ local function CreateESP(player)
                     if part1 and part2 then
                         local p1, onScreen1 = Camera:WorldToViewportPoint(part1.Position)
                         local p2, onScreen2 = Camera:WorldToViewportPoint(part2.Position)
-                        if onScreen1 and onScreen2 then
+                        if onScreen1 and onScreen2 and p1.Z > 0 and p2.Z > 0 then
                             skeletonLines[i].Visible = true; skeletonLines[i].Color = activeColor
                             skeletonLines[i].From = Vector2.new(p1.X, p1.Y); skeletonLines[i].To = Vector2.new(p2.X, p2.Y)
                         else
@@ -798,7 +800,7 @@ Players.PlayerAdded:Connect(CreateESP)
 RunService.RenderStepped:Connect(function()
     if espLaserTargetEnabled and CurrentSilentAimTarget then
         local pos, onScreen = Camera:WorldToViewportPoint(CurrentSilentAimTarget.Position)
-        if onScreen then
+        if onScreen and pos.Z > 0 then
             targetLaser.Visible = true
             targetLaser.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
             targetLaser.To = Vector2.new(pos.X, pos.Y)
@@ -833,7 +835,6 @@ Tab:CreateSlider({
 Tab:CreateToggle({Name = "Saut Infini (Ultra-Rapide)", CurrentValue = false, Callback = function(v) infiniteJumpEnabled = v end})
 Tab:CreateSlider({Name = "Hauteur du Saut", Range = {10, 150}, CurrentValue = 40, Callback = function(v) puissanceSaut = v end})
 Tab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
-Tab:CreateSlider({Name = "Puissance Vitesse", Range = {0.1, 10.0}, Increment = 0.1, CurrentValue = 0.2, Callback = function(v) multiplicateurValeur = v end})
 Tab:CreateToggle({Name = "Anti-Chute (Stabilisateur)", CurrentValue = false, Callback = function(v) antiFallEnabled = v end})
 
 
