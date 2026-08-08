@@ -833,7 +833,7 @@ Tab:CreateSlider({
 Tab:CreateToggle({Name = "Saut Infini (Ultra-Rapide)", CurrentValue = false, Callback = function(v) infiniteJumpEnabled = v end})
 Tab:CreateSlider({Name = "Hauteur du Saut", Range = {10, 150}, CurrentValue = 40, Callback = function(v) puissanceSaut = v end})
 Tab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
-Tab:CreateSlider({Name = "Puissance Vitesse", Range = {1, 100}, Increment = 1, CurrentValue = 2, Callback = function(v) multiplicateurValeur = v end})
+Tab:CreateSlider({Name = "Puissance Vitesse", Range = {0.1, 10.0}, Increment = 0.1, CurrentValue = 0.2, Callback = function(v) multiplicateurValeur = v end})
 Tab:CreateToggle({Name = "Anti-Chute (Stabilisateur)", CurrentValue = false, Callback = function(v) antiFallEnabled = v end})
 
 
