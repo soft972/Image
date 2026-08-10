@@ -75,11 +75,11 @@ local markedCheaters = {}
 -- Paramètres de réglage
 local multiplicateurValeur = 0.1
 local puissanceSaut = 40 
-local fovSize = 100
+local fovSize = 150
 
 -- Initialisation de la Fenêtre UI (Ordre des onglets modifié)
 local Window = soronice:CreateWindow({
-    Name = "SOFT-HUB",
+    Name = "SOFTಸ್ HUB",
     BrandLogo   = "99988830313432",
     ShowDevice = true,
     ShowPing = true,
@@ -129,7 +129,7 @@ end)
 local function getTargetInsideFOV()
     local target = nil
     local shortestDistance = fovSize
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local center = Vector2.new(Camera.ViewportSize.X / 0.5, -50, Camera.ViewportSize.Y / 0.5, -50)
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -433,7 +433,7 @@ RunService.RenderStepped:Connect(function()
                         hum:ChangeState(Enum.HumanoidStateType.Jumping)
                         hrp.AssemblyLinearVelocity = Vector3.new(
                             hrp.AssemblyLinearVelocity.X, 
-                            puissanceSaut * 0.5, -- Boost léger de vélocité instantanée
+                            puissanceSaut * 1.4, -- Boost léger de vélocité instantanée
                             hrp.AssemblyLinearVelocity.Z
                         )
                     end
@@ -732,15 +732,21 @@ local function matchToolName(tool)
 end
 
 local function getToolRarityColor(toolName)
-    local name = tostring(toolName):lower()
-    if name == "p226" or name == "clè" or name == "lame de commutation" or name == "balai en diamant" then
-        return Color3.fromRGB(0, 170, 255) 
-    elseif name == "g3" or name == "marteau" or name == "batte de baseball" or name == "énergie taureau" or name == "sac de sang" then
-        return Color3.fromRGB(0, 255, 0) 
-    elseif name == "fists" or name == " " then
-        return Color3.fromRGB(150, 150, 150) 
-    end
-    return Color3.fromRGB(150, 150, 150)
+	local name = tostring(toolName):lower()
+	if name == "p226" or name == "Regular Pot" or name == "Corn Seeds" or name == "Regular Fertilizer" or name == "Regular Soil" or name == "Coelacanth" or name == "Ultimate Fishing Rod" or name == "Advanced Fishing Rod" or name == "Sawnoff" or name == "Uzi" or name == "Hunting Rifle" or name == "Brainrot Slapper" or name == "Emergency Care Kit" or name == "clè" or name == "lame de commutation" or name == "balai en diamant" or name == "glock" or name == "pre workout" or name == "metal baseball bat" or name == "wrench" then
+		return Color3.fromRGB(0, 89, 255) 
+	elseif name == "g3" or name == "Sunflower Seeds" or name == "Northern Pike" or name == "Dolphin Fish" or name == "Pro Fishing Rod" or name == "C9" or name == "marteau" or name == "batte de baseball" or name == "énergie taureau" or name == "sac de sang" then
+		return Color3.fromRGB(0, 255, 0) 
+	elseif name == "fists" or name == "Watering Can" or name == "Perch"  or name == "Bass"  or name == "Salmon" or name == "Bandage" or name == "Regular Fishing Rod" then
+		return Color3.fromRGB(150, 150, 150)
+	elseif name == "draco" or name == "Tomato Seeds" or name == "Premium Soil" or name == "Organic Fertilizer" or name == "Tuna" or name == "Combat Axe" or name == "Barbed Baseball Bat" or name == "M24" or name == "Firework Launcher" or name == "double tonneau" or name == "energy shot" or name == "machete" or name == "skorpion" or name == "molotov" or name == "grenade" or name == "sledge hammer" or name == "shovel" then
+		return Color3.fromRGB(170, 0, 255)
+	elseif name == "m16" or name == "Golden Pot" or name == "Golden Tomato Seeds" or name == "Diamond Pot" or name == "Marlin" or name == "Sailfish" or name == "rpg" or name == "ak47" or name == "mp5" or name == "remington" or name == "Crossbow" or name == "Tactical Axe" or name == "Tactical Shovel" or name == "Tactical Knife" then
+		return Color3.fromRGB(255, 193, 5)
+	elseif name == "Anaconda" or name == "M249" then
+		return Color3.fromRGB(255, 0, 4)
+	end
+	return Color3.fromRGB(255, 0, 4)
 end
 
 local espObjects = {}
@@ -768,7 +774,7 @@ local function CreateESP(player)
     info.Visible = false; info.Color = Color3.new(1, 1, 1); info.Size = 14; info.Outline = true; info.Center = true
 
     local cheaterLabel = safeDrawing("Text")
-    cheaterLabel.Visible = false; cheaterLabel.Color = Color3.fromRGB(0, 170, 255); cheaterLabel.Size = 14; cheaterLabel.Outline = true; cheaterLabel.Center = true
+    cheaterLabel.Visible = false; cheaterLabel.Color = Color3.fromRGB(0, 0, 255); cheaterLabel.Size = 14; cheaterLabel.Outline = true; cheaterLabel.Center = true
 
     local skeletonLines = {}
     for i = 1, 15 do
@@ -992,9 +998,10 @@ Tab:CreateSlider({
     CurrentValue = 100, 
     Callback = function(v) fovSize = v end
 })
+Tab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
+Tab:CreateSlider({Name = "Puissance Vitesse", Range = {1, 100}, Increment = 1, CurrentValue = 2, Callback = function(v) multiplicateurValeur = v end})
 Tab:CreateToggle({Name = "Saut Infini (Ultra-Rapide)", CurrentValue = false, Callback = function(v) infiniteJumpEnabled = v end})
 Tab:CreateSlider({Name = "Hauteur du Saut", Range = {10, 150}, CurrentValue = 40, Callback = function(v) puissanceSaut = v end})
-Tab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
 Tab:CreateToggle({Name = "Anti-Chute (Stabilisateur)", CurrentValue = false, Callback = function(v) antiFallEnabled = v end})
 
 
