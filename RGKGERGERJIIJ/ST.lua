@@ -34,6 +34,7 @@ local function safeDrawing(drawingType)
         local success, obj = pcall(Drawing.new, drawingType)
         if success then return obj end
     end
+    -- Système de secours si l'exécuteur mobile ne supporte pas le dessin
     local dummy = {
         Visible = false,
         Color = Color3.new(1,1,1),
@@ -72,7 +73,7 @@ local isMovementPaused = false
 local markedCheaters = {}
 
 -- Paramètres de réglage
-local multiplicateurValeur = 1.4
+local multiplicateurValeur = 0.1
 local puissanceSaut = 40 
 local fovSize = 100
 
@@ -432,7 +433,7 @@ RunService.RenderStepped:Connect(function()
                         hum:ChangeState(Enum.HumanoidStateType.Jumping)
                         hrp.AssemblyLinearVelocity = Vector3.new(
                             hrp.AssemblyLinearVelocity.X, 
-                            puissanceSaut * 1.3, -- Boost léger de vélocité instantanée
+                            puissanceSaut * 0.5, -- Boost léger de vélocité instantanée
                             hrp.AssemblyLinearVelocity.Z
                         )
                     end
@@ -469,24 +470,44 @@ end)
 -- ==========================================
 -- 6. ANTI-CHUTE (STABILISATEUR)
 -- ==========================================
+
+local currentHum, currentHrp
+
+local function setupCharacter(char)
+    currentHum = char:FindFirstChildOfClass("Humanoid")
+    currentHrp = char:FindFirstChild("HumanoidRootPart")
+
+    if currentHum then
+        -- Une seule fois par personnage, pas besoin de répéter à chaque frame
+        currentHum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        currentHum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+
 RunService.Heartbeat:Connect(function()
-    if antiFallEnabled and not isMovementPaused then
-        pcall(function()
-            local char = LocalPlayer.Character
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            
-            if hum and hrp and not hum.Sit then
-                hrp.RotVelocity = Vector3.new(0, hrp.RotVelocity.Y, 0)
-                hrp.CFrame = CFrame.new(hrp.CFrame.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y), 0)
-                
-                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-                if hum:GetState() == Enum.HumanoidStateType.FallingDown or hum:GetState() == Enum.HumanoidStateType.Ragdoll then
-                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                end
-            end
-        end)
+    if not (antiFallEnabled and not isMovementPaused) then return end
+    if not (currentHum and currentHrp) then return end
+    if currentHum.Sit then return end
+
+    local ok, err = pcall(function()
+        currentHrp.RotVelocity = Vector3.new(0, currentHrp.RotVelocity.Y, 0)
+        currentHrp.CFrame = CFrame.new(currentHrp.CFrame.Position)
+            * CFrame.Angles(0, math.rad(currentHrp.Orientation.Y), 0)
+
+        local state = currentHum:GetState()
+        if state == Enum.HumanoidStateType.FallingDown
+        or state == Enum.HumanoidStateType.Ragdoll then
+            currentHum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end)
+
+    if not ok then
+        warn("[AntiFall] Erreur:", err)
     end
 end)
 
@@ -664,6 +685,7 @@ local function CreateESP(player)
 
     espObjects[player] = {box = box, info = info, cheaterLabel = cheaterLabel, skeleton = skeletonLines, toolContainer = toolContainer, toolSlots = toolSlots}
 
+    local connection
     connection = RunService.RenderStepped:Connect(function()
         if not player.Parent then
             box:Remove(); info:Remove(); cheaterLabel:Remove()
@@ -693,8 +715,7 @@ local function CreateESP(player)
                 end
             end
 
-            -- L'ESP d'origine s'affiche uniquement si l'ennemi est DEVANT (pos.Z > 0) pour empêcher l'affichage inversé
-            if espBoxEnabled and screen and pos.Z > 0 then
+            if espBoxEnabled and screen then
                 box.Visible = true; box.Color = activeColor
                 box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
                 box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
@@ -765,7 +786,7 @@ local function CreateESP(player)
                 box.Visible = false; info.Visible = false; toolContainer.Visible = false; cheaterLabel.Visible = false
             end
 
-            if espSkeletonEnabled and screen and pos.Z > 0 then
+            if espSkeletonEnabled and screen then
                 local isR15 = char:FindFirstChild("UpperTorso") ~= nil
                 local currentBones = isR15 and bones or bonesR6
 
@@ -774,7 +795,7 @@ local function CreateESP(player)
                     if part1 and part2 then
                         local p1, onScreen1 = Camera:WorldToViewportPoint(part1.Position)
                         local p2, onScreen2 = Camera:WorldToViewportPoint(part2.Position)
-                        if onScreen1 and onScreen2 and p1.Z > 0 and p2.Z > 0 then
+                        if onScreen1 and onScreen2 then
                             skeletonLines[i].Visible = true; skeletonLines[i].Color = activeColor
                             skeletonLines[i].From = Vector2.new(p1.X, p1.Y); skeletonLines[i].To = Vector2.new(p2.X, p2.Y)
                         else
@@ -800,7 +821,7 @@ Players.PlayerAdded:Connect(CreateESP)
 RunService.RenderStepped:Connect(function()
     if espLaserTargetEnabled and CurrentSilentAimTarget then
         local pos, onScreen = Camera:WorldToViewportPoint(CurrentSilentAimTarget.Position)
-        if onScreen and pos.Z > 0 then
+        if onScreen then
             targetLaser.Visible = true
             targetLaser.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
             targetLaser.To = Vector2.new(pos.X, pos.Y)
@@ -900,10 +921,12 @@ local Copy = MainTab:CreateButton({
         })
     end,
 })
-
+-- ==========================================
+-- Notifycation de bienvenu
+-- ==========================================
 soronice:Notify({
    Title = "BlockSpin🔪",
-   Content = "Welcome to SORONICE HUB",
+   Content = "Welcome to SORONICE HUB✅",
    Duration = 5,
    Image = 71401779636326,
 })
