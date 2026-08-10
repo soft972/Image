@@ -105,7 +105,7 @@ CrosshairGui.Parent = SafeParent
 local Circle = Instance.new("Frame", CrosshairGui)
 Circle.Name = "Ring"
 Circle.AnchorPoint = Vector2.new(0.5, 0.5)
-Circle.Position = UDim2.new(0.5, -50, 0.5, -50)
+Circle.Position = UDim2.new(0, 0, 0, 0)
 Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Circle.BackgroundTransparency = 1 
 Circle.Visible = false
@@ -127,7 +127,8 @@ Gradient.Rotation = 90 -- Rotation à 90 pour que le dégradé aille de haut en 
 
 -- On définit les couleurs du dégradé (ColorSequence)
 Gradient.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),    -- Point de départ (Haut) : Rouge classique
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 0, 0)),    -- Point de départ (Haut) : Rouge classique
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 81)),  -- Point milieu : Rouge foncé
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 0, 0))     -- Point d'arrivée (Bas) : Rouge très foncé
 }
 -- ==========================================
