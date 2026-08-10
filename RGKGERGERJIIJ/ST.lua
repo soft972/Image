@@ -514,11 +514,140 @@ end)
 -- ==========================================
 -- 7. ESP AVANCÉ (VOTRE VERSION INITIALE 100% SÉCURISÉE)
 -- ==========================================
+--[[
+    ============================================================
+    LISTE DE DÉFINITIONS SPÉCIALES (à remplir toi-même)
+    ============================================================
+    Chaque entrée = un "chemin" à suivre depuis le Tool, jusqu'à
+    un objet précis (un Son, une Texture, un Mesh 3D...), et la
+    valeur (le chiffre/id) qu'on doit trouver à cet endroit pour
+    que ça matche.
+
+    CHAMPS :
+    - path       : liste des noms d'enfants à suivre depuis le Tool.
+                   Exemple : {"Handle", "ImpactSound"}
+                   veut dire Tool -> Handle -> ImpactSound
+    - checkType  : quel type de valeur on regarde une fois arrivé
+                   au bout du chemin. Valeurs possibles :
+                     "SoundId"   -> pour un objet Sound
+                     "TextureId" -> pour un Decal, MeshPart ou SpecialMesh
+                     "MeshId"    -> pour un MeshPart ou SpecialMesh (objet 3D)
+                     "ImageId"   -> pour un attribut personnalisé sur l'instance
+    - value      : le chiffre/id exact à matcher (ex: "rbxassetid://123456")
+    - resultName : le nom à afficher si ça matche
+    - resultImage: l'image à afficher si ça matche
+
+    EXEMPLES (à adapter / dupliquer / supprimer selon tes besoins) :
+--]]
+local SPECIAL_TOOL_DEFINITIONS = {
+
+    -- Exemple 1 : reconnaissance par un SON dans Handle
+    {
+        path = {"Handle", "ImpactSound"},
+        checkType = "SoundId",
+        value = "rbxassetid://9117971636", -- <-- mets le vrai SoundId ici
+        resultName = "Fists",
+        resultImage = "rbxassetid://116170302967943", -- <-- mets la vraie image ici
+    },
+
+    -- Exemple 2 : reconnaissance par un objet 3D (MeshId) dans Handle
+    {
+        path = {"Handle"},
+        checkType = "MeshId",
+        value = "rbxassetid://0000000003",
+        resultName = "NomAAfficher2",
+        resultImage = "rbxassetid://0000000004",
+    },
+
+    -- Exemple 3 : reconnaissance par une texture (dans un dossier imbriqué)
+    {
+        path = {"Handle", "SubPart"},
+        checkType = "TextureId",
+        value = "rbxassetid://0000000005",
+        resultName = "NomAAfficher3",
+        resultImage = "rbxassetid://0000000006",
+    },
+
+    -- Ajoute autant d'entrées que tu veux en suivant ce format ⤴
+}
+
+
+--[[
+    ============================================================
+    FONCTIONS DE RECONNAISSANCE PAR CHEMIN
+    ============================================================
+--]]
+
+-- Suit le chemin (liste de noms) depuis le tool, étape par étape
+local function resolvePath(tool, path)
+    local current = tool
+    for _, childName in ipairs(path) do
+        if not current then return nil end
+        current = current:FindFirstChild(childName)
+    end
+    return current
+end
+
+-- Récupère la "valeur" (chiffre/id) d'une instance selon le type demandé
+local function getValueByType(instance, checkType)
+    if not instance then return nil end
+
+    if checkType == "SoundId" then
+        if instance:IsA("Sound") then
+            return instance.SoundId
+        end
+
+    elseif checkType == "TextureId" then
+        if instance:IsA("Decal") then
+            return instance.Texture
+        elseif instance:IsA("MeshPart") then
+            return instance.TextureID
+        elseif instance:IsA("SpecialMesh") then
+            return instance.TextureId
+        end
+
+    elseif checkType == "MeshId" then
+        if instance:IsA("MeshPart") then
+            return instance.MeshId
+        elseif instance:IsA("SpecialMesh") then
+            return instance.MeshId
+        end
+
+    elseif checkType == "ImageId" then
+        return instance:GetAttribute("ImageId")
+    end
+
+    return nil
+end
+
+-- Vérifie le tool contre TOUTES les définitions de la liste.
+-- Dès qu'une définition matche, on retourne son nom + son image.
+local function checkSpecialDefinitions(tool)
+    for _, def in ipairs(SPECIAL_TOOL_DEFINITIONS) do
+        local target = resolvePath(tool, def.path)
+        if target then
+            local foundValue = getValueByType(target, def.checkType)
+            if foundValue and foundValue == def.value then
+                return def.resultName, def.resultImage
+            end
+        end
+    end
+    return nil
+end
+
+
+--[[
+    ============================================================
+    SCRIPT ORIGINAL (inchangé, sauf l'ajout de la priorité en haut
+    de matchToolName)
+    ============================================================
+--]]
+
 local function getToolTexture(tool)
     if not tool then return "rbxassetid://4483345998" end
     if typeof(tool.TextureId) == "string" and tool.TextureId ~= "" then return tool.TextureId end
     if tool:GetAttribute("ImageId") then return tool:GetAttribute("ImageId") end
-    
+
     local handle = tool:FindFirstChild("Handle")
     if handle then
         if handle:IsA("MeshPart") and handle.TextureID ~= "" then return handle.TextureID end
@@ -535,6 +664,16 @@ local toolCache = setmetatable({}, {__mode = "k"})
 local function matchToolName(tool)
     if not tool then return "Unknown", getToolTexture(nil) end
     if toolCache[tool] then return toolCache[tool].name, toolCache[tool].texture end
+
+    -- ==========================================================
+    -- PRIORITÉ 1 : reconnaissance par chemin (SPECIAL_TOOL_DEFINITIONS)
+    -- Vérifié en tout premier, avant même "FISTS"
+    -- ==========================================================
+    local specialName, specialTexture = checkSpecialDefinitions(tool)
+    if specialName then
+        toolCache[tool] = {name = specialName, texture = specialTexture}
+        return specialName, specialTexture
+    end
 
     local nameLower = tool.Name:lower()
     if nameLower == "combat" or nameLower == "fists" or nameLower == "fist" then
@@ -573,12 +712,12 @@ local function matchToolName(tool)
                                 local iMesh = iHandle:FindFirstChildOfClass("SpecialMesh")
                                 if iMesh then iMeshId = iMesh.MeshId end
                             end
-                            
+
                             if iMeshId == uniqueMeshId then
                                 local matchedName = item.Name
                                 local matchedTex = getToolTexture(item)
                                 toolCache[tool] = {name = matchedName, texture = matchedTex}
-                                return matchedName, matchedTex 
+                                return matchedName, matchedTex
                             end
                         end
                     end
@@ -586,7 +725,7 @@ local function matchToolName(tool)
             end
         end
     end
-    
+
     local fallbackTex = getToolTexture(tool)
     toolCache[tool] = {name = realName, texture = fallbackTex}
     return realName, fallbackTex
@@ -596,9 +735,9 @@ local function getToolRarityColor(toolName)
     local name = tostring(toolName):lower()
     if name == "p226" or name == "clè" or name == "lame de commutation" or name == "balai en diamant" then
         return Color3.fromRGB(0, 170, 255) 
-    elseif name == "g3" or name == "marteau" then
+    elseif name == "g3" or name == "marteau" or name == "batte de baseball" or name == "énergie taureau" or name == "sac de sang" then
         return Color3.fromRGB(0, 255, 0) 
-    elseif name == "fists" then
+    elseif name == "fists" or name == " " then
         return Color3.fromRGB(150, 150, 150) 
     end
     return Color3.fromRGB(150, 150, 150)
@@ -926,7 +1065,7 @@ local Copy = MainTab:CreateButton({
 -- ==========================================
 soronice:Notify({
    Title = "BlockSpin🔪",
-   Content = "Welcome to SORONICE HUB✅",
+   Content = "Welcome to SORONICE HUB",
    Duration = 5,
    Image = 71401779636326,
 })
