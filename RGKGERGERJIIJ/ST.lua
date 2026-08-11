@@ -860,74 +860,77 @@ local function CreateESP(player)
 		local isTargeted = (CurrentSilentAimTarget and player.Character and CurrentSilentAimTarget:IsDescendantOf(player.Character))
 		local activeColor = (espLaserTargetEnabled and isTargeted) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 255)
 
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer then
-			local char = player.Character
-			local root = char.HumanoidRootPart
-			local humanoid = char:FindFirstChild("Humanoid")
-			local pos, screen = Camera:WorldToViewportPoint(root.Position)
+	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer then
+        local char = player.Character
+        local root = char.HumanoidRootPart
+        local humanoid = char:FindFirstChild("Humanoid")
+        local pos, screen = Camera:WorldToViewportPoint(root.Position)
 
--- 1. PARTIE DÉTECTION (Améliorée)
+        -- ==========================================
+        -- 1. DÉTECTION AMÉLIORÉE (Anti faux-positifs)
+        -- ==========================================
+        if cheaterDetectionEnabled and humanoid and root then
+            -- On vérifie l'état du joueur
+            local isSitting = humanoid.Sit
+            local currentState = humanoid:GetState()
+            local isFalling = (currentState == Enum.HumanoidStateType.Freefall or currentState == Enum.HumanoidStateType.FallingDown)
+            local isRagdolled = (currentState == Enum.HumanoidStateType.Ragdoll or currentState == Enum.HumanoidStateType.GettingUp)
 
-if cheaterDetectionEnabled and humanoid and root then
-    -- On vérifie si le joueur est assis (véhicule)
-    local isSitting = humanoid.Sit
-    
-    -- On vérifie l'état actuel du joueur (pour éviter de détecter une chute ou un bug physique)
-    local currentState = humanoid:GetState()
-    local isFalling = (currentState == Enum.HumanoidStateType.Freefall or currentState == Enum.HumanoidStateType.FallingDown)
-    local isRagdolled = (currentState == Enum.HumanoidStateType.Ragdoll or currentState == Enum.HumanoidStateType.GettingUp)
+            -- Si le joueur est normal (ni en chute, ni buggé, ni en véhicule)
+            if not isSitting and not isFalling and not isRagdolled then
+                local hrpVel = root.Velocity
+                local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
+                local verticalSpeed = hrpVel.Y
 
-    -- Si le joueur N'EST PAS dans un véhicule, N'EST PAS en chute libre et NE subit pas de bug
-    if not isSitting and not isFalling and not isRagdolled then
-        local hrpVel = root.Velocity
-        local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
-        local verticalSpeed = hrpVel.Y -- Vitesse vers le haut
-
-        -- On augmente un tout petit peu la tolérance (un joueur normal court à 16, avec des bonus ça peut monter à 25-30)
-        -- Si la vitesse vers le haut (verticalSpeed) est > 50, il est probablement en train de voler (Fly Hack)
-        if horizontalSpeed > 30 or verticalSpeed > 50 then 
-            markedCheaters[player] = true
+                -- Tolérance légèrement augmentée pour éviter les bugs liés au lag
+                if horizontalSpeed > 30 or verticalSpeed > 50 then 
+                    markedCheaters[player] = true
+                end
+            end
         end
-    end
-end
 
+        -- ==========================================
+        -- 2. AFFICHAGE ESP ET INFOS
+        -- ==========================================
+        if espBoxEnabled and screen then
+            box.Visible = true; box.Color = activeColor
+            box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
+            box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
 
--- 2. PARTIE AFFICHAGE (ESP)
+            info.Visible = true; info.Color = activeColor
+            info.Text = player.Name
+            info.Position = Vector2.new(pos.X, box.Position.Y - 25)
 
-if espBoxEnabled and screen then
-    box.Visible = true
-    box.Color = activeColor
-    box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
-    box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
+            if cheaterDetectionEnabled and markedCheaters[player] then
+                cheaterLabel.Visible = true
+                cheaterLabel.Text = "[HACKÉ]"
+                cheaterLabel.Position = Vector2.new(pos.X, info.Position.Y - 16)
+            else
+                cheaterLabel.Visible = false
+            end
 
-    info.Visible = true
-    info.Color = activeColor
-    info.Text = player.Name
-    info.Position = Vector2.new(pos.X, box.Position.Y - 25)
-
-    -- Affichage du tag HACKÉ
-    if cheaterDetectionEnabled and markedCheaters[player] then
-        cheaterLabel.Visible = true
-        cheaterLabel.Text = "[HACKÉ]"
-        cheaterLabel.Position = Vector2.new(pos.X, info.Position.Y - 16)
-        
-        -- Note: Tu ne peux pas faire "player:Kick()" depuis ici si c'est un ESP côté client (LocalScript).
-        -- Ça ne marchera que sur toi-même.
-    else
-        cheaterLabel.Visible = false
-    end
-end
-
-				local toolsData = {}
-				for _, v in ipairs(char:GetChildren()) do
-					if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
-				end
-				local backpack = player:FindFirstChild("Backpack")
-				if backpack then
-					for _, v in ipairs(backpack:GetChildren()) do
-						if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
-					end
-				end
+            -- ==========================================
+            -- 3. RÉCUPÉRATION DES OUTILS (Inventaire)
+            -- ==========================================
+            local toolsData = {}
+            
+            -- Récupère les outils équipés dans les mains
+            for _, v in ipairs(char:GetChildren()) do
+                if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then 
+                    table.insert(toolsData, v) 
+                end
+            end
+            
+            -- Récupère les outils rangés dans le sac à dos
+            local backpack = player:FindFirstChild("Backpack")
+            if backpack then
+                for _, v in ipairs(backpack:GetChildren()) do
+                    if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then 
+                        table.insert(toolsData, v) 
+                    end
+                end
+            end
+        end
 
 				if #toolsData > 0 then
 					toolContainer.Visible = true
