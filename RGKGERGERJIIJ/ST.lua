@@ -88,8 +88,8 @@ local Window = soronice:CreateWindow({
     KeySystem = false,
     KeySettings = { Title = "ACCES PREMIUM", LinkText = "Copier", Key = "1234", GrabKeyFromSite = false, Link = "" }
 })
-local MainTab = Window:CreateTab("Main", 79047049601630) 
-local Tab = Window:CreateTab("Mouvement") -- Mouvement passe devant
+local MainTab = Window:CreateTab("Main", 79047049601630)
+local ARMTab = Window:CreateTab("ARM", 119170763100854) 
 local joueurTab = Window:CreateTab("Joueur", 74615953378946) -- Joueur passe derrière mouvement
 local VisionTab = Window:CreateTab("Vision FPS", 137310194899135)
 local ServeurTab = Window:CreateTab("Serveur", 137633026925616) 
@@ -866,32 +866,57 @@ local function CreateESP(player)
 			local humanoid = char:FindFirstChild("Humanoid")
 			local pos, screen = Camera:WorldToViewportPoint(root.Position)
 
-			if cheaterDetectionEnabled and humanoid and not humanoid.Sit then
-				local hrpVel = root.Velocity
-				local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
-				local verticalSpeed = hrpVel.Y
+-- 1. PARTIE DÉTECTION (Améliorée)
 
-				if horizontalSpeed > 24 or verticalSpeed > 50 then 
-					markedCheaters[player] = true
-				end
-			end
+if cheaterDetectionEnabled and humanoid and root then
+    -- On vérifie si le joueur est assis (véhicule)
+    local isSitting = humanoid.Sit
+    
+    -- On vérifie l'état actuel du joueur (pour éviter de détecter une chute ou un bug physique)
+    local currentState = humanoid:GetState()
+    local isFalling = (currentState == Enum.HumanoidStateType.Freefall or currentState == Enum.HumanoidStateType.FallingDown)
+    local isRagdolled = (currentState == Enum.HumanoidStateType.Ragdoll or currentState == Enum.HumanoidStateType.GettingUp)
 
-			if espBoxEnabled and screen then
-				box.Visible = true; box.Color = activeColor
-				box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
-				box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
+    -- Si le joueur N'EST PAS dans un véhicule, N'EST PAS en chute libre et NE subit pas de bug
+    if not isSitting and not isFalling and not isRagdolled then
+        local hrpVel = root.Velocity
+        local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
+        local verticalSpeed = hrpVel.Y -- Vitesse vers le haut
 
-				info.Visible = true; info.Color = activeColor
-				info.Text = player.Name
-				info.Position = Vector2.new(pos.X, box.Position.Y - 25)
+        -- On augmente un tout petit peu la tolérance (un joueur normal court à 16, avec des bonus ça peut monter à 25-30)
+        -- Si la vitesse vers le haut (verticalSpeed) est > 50, il est probablement en train de voler (Fly Hack)
+        if horizontalSpeed > 30 or verticalSpeed > 50 then 
+            markedCheaters[player] = true
+        end
+    end
+end
 
-				if cheaterDetectionEnabled and markedCheaters[player] then
-					cheaterLabel.Visible = true
-					cheaterLabel.Text = "[HACKÉ]"
-					cheaterLabel.Position = Vector2.new(pos.X, info.Position.Y - 16)
-				else
-					cheaterLabel.Visible = false
-				end
+
+-- 2. PARTIE AFFICHAGE (ESP)
+
+if espBoxEnabled and screen then
+    box.Visible = true
+    box.Color = activeColor
+    box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
+    box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
+
+    info.Visible = true
+    info.Color = activeColor
+    info.Text = player.Name
+    info.Position = Vector2.new(pos.X, box.Position.Y - 25)
+
+    -- Affichage du tag HACKÉ
+    if cheaterDetectionEnabled and markedCheaters[player] then
+        cheaterLabel.Visible = true
+        cheaterLabel.Text = "[HACKÉ]"
+        cheaterLabel.Position = Vector2.new(pos.X, info.Position.Y - 16)
+        
+        -- Note: Tu ne peux pas faire "player:Kick()" depuis ici si c'est un ESP côté client (LocalScript).
+        -- Ça ne marchera que sur toi-même.
+    else
+        cheaterLabel.Visible = false
+    end
+end
 
 				local toolsData = {}
 				for _, v in ipairs(char:GetChildren()) do
@@ -999,7 +1024,7 @@ end)
 -- ==========================================
 
 -- --- ONGLET 1 : MOUVEMENT & TIR ---
-Tab:CreateToggle({
+ARMTab:CreateToggle({
     Name = "Activer le mode tir au balle (Silent Aim)", 
     CurrentValue = false, 
     Callback = function(v) 
@@ -1007,18 +1032,18 @@ Tab:CreateToggle({
         silentAimEnabled = v 
     end
 })
-Tab:CreateSlider({
+ARMTab:CreateSlider({
     Name = "Taille du Cercle Jaune (FOV)", 
     Range = {50, 800}, 
     Increment = 5, 
     CurrentValue = 100, 
     Callback = function(v) fovSize = v end
 })
-Tab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
-Tab:CreateSlider({Name = "Puissance Vitesse", Range = {1, 100}, Increment = 1, CurrentValue = 2, Callback = function(v) multiplicateurValeur = v end})
-Tab:CreateToggle({Name = "Saut Infini (Ultra-Rapide)", CurrentValue = false, Callback = function(v) infiniteJumpEnabled = v end})
-Tab:CreateSlider({Name = "Hauteur du Saut", Range = {10, 150}, CurrentValue = 40, Callback = function(v) puissanceSaut = v end})
-Tab:CreateToggle({Name = "Anti-Chute (Stabilisateur)", CurrentValue = false, Callback = function(v) antiFallEnabled = v end})
+joueurTab:CreateToggle({Name = "Vitesse Multipliée", CurrentValue = false, Callback = function(v) speedMultiplierEnabled = v end})
+joueurTab:CreateSlider({Name = "Puissance Vitesse", Range = {1, 100}, Increment = 1, CurrentValue = 2, Callback = function(v) multiplicateurValeur = v end})
+joueurTab:CreateToggle({Name = "Saut Infini (Ultra-Rapide)", CurrentValue = false, Callback = function(v) infiniteJumpEnabled = v end})
+joueurTab:CreateSlider({Name = "Hauteur du Saut", Range = {10, 150}, CurrentValue = 40, Callback = function(v) puissanceSaut = v end})
+joueurTab:CreateToggle({Name = "Anti-Chute (Stabilisateur)", CurrentValue = false, Callback = function(v) antiFallEnabled = v end})
 
 
 -- --- ONGLET 2 : JOUEUR & ANTIS ---
