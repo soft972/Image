@@ -752,7 +752,7 @@ local function getToolRarityColor(toolName)
 		return Color3.fromRGB(0, 89, 255) 
 	elseif name == "g3" or name == "sunflower seeds" or name == "northern pike" or name == "dolphin fish" or name == "pro fishing rod" or name == "c9" or name == "marteau" or name == "batte de baseball" or name == "énergie taureau" or name == "sac de sang" then
 		return Color3.fromRGB(0, 255, 0) 
-	elseif name == "fists" or name == "watering can" or name == "perch" or name == "bass" or name == "salmon" or name == "bandage" or name == "regular fishing rod" then
+	elseif name == "fists" or name == "watering can" or name == "perch" or name == "bass" or name == "salmon" or name == "bandage" or name == "regular fishing rod" or name == "prise de verrou" then
 		return Color3.fromRGB(150, 150, 150)
 	elseif name == "draco" or name == "tomato seeds" or name == "premium soil" or name == "organic fertilizer" or name == "tuna" or name == "combat axe" or name == "barbed baseball bat" or name == "m24" or name == "firework launcher" or name == "double tonneau" or name == "energy shot" or name == "machete" or name == "skorpion" or name == "molotov" or name == "grenade" or name == "sledge hammer" or name == "shovel" then
 		return Color3.fromRGB(170, 0, 255)
@@ -865,17 +865,49 @@ local function CreateESP(player)
 			local root = char.HumanoidRootPart
 			local humanoid = char:FindFirstChild("Humanoid")
 			local pos, screen = Camera:WorldToViewportPoint(root.Position)
+            -- À placer au début de ton script (en dehors de ta boucle)
+            local cheaterStrikes = {} -- Enregistre le nombre de fois où le joueur dépasse la limite
+            local MAX_STRIKES = 3 -- Au bout de 3 anomalies consécutives, il est marqué comme tricheur
 
-			if cheaterDetectionEnabled and humanoid and not humanoid.Sit then
-				local hrpVel = root.Velocity
-				local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
-				local verticalSpeed = hrpVel.Y
+            -- La limite de vitesse tolérée (Course = 24, on met 30 pour la marge d'erreur physique/lag)
+            local MAX_HORIZONTAL_SPEED = 30
+            local MAX_VERTICAL_SPEED = 50
 
-				if horizontalSpeed > 24 or verticalSpeed > 50 then 
-					markedCheaters[player] = true
-				end
-			end
-
+            -- À l'intérieur de ta boucle de vérification :
+            if cheaterDetectionEnabled and humanoid then
+                
+                -- 1. On s'assure que le joueur n'est PAS dans un véhicule (Assis)
+                if not humanoid.Sit then
+                    local hrpVel = root.Velocity
+                    local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
+                    local verticalSpeed = hrpVel.Y
+            
+                    -- 2. On vérifie si la vitesse est anormale
+                    if horizontalSpeed > MAX_HORIZONTAL_SPEED or verticalSpeed > MAX_VERTICAL_SPEED then 
+                        
+                        -- On ajoute un "strike" au joueur
+                        cheaterStrikes[player] = (cheaterStrikes[player] or 0) + 1
+                        
+                        -- Si le joueur dépasse la limite plusieurs fois (MAX_STRIKES), il est marqué
+                        if cheaterStrikes[player] >= MAX_STRIKES then
+                            markedCheaters[player] = true
+                        end
+                        
+                    else
+                        -- S'il ne triche pas sur cette vérification, on baisse ses strikes.
+                        -- Ça permet d'effacer les erreurs dues à un simple coup de lag.
+                        if cheaterStrikes[player] and cheaterStrikes[player] > 0 then
+                            cheaterStrikes[player] = cheaterStrikes[player] - 1
+                        end
+                    end
+                    
+                else
+                    -- Le joueur EST dans un véhicule (Sit = true).
+                    -- On l'ignore complètement et on remet ses strikes à 0 au cas où.
+                    cheaterStrikes[player] = 0
+                end
+            end
+			                 
 			if espBoxEnabled and screen then
 				box.Visible = true; box.Color = activeColor
 				box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
@@ -893,16 +925,26 @@ local function CreateESP(player)
 					cheaterLabel.Visible = false
 				end
 
-				local toolsData = {}
-				for _, v in ipairs(char:GetChildren()) do
-					if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
-				end
-				local backpack = player:FindFirstChild("Backpack")
-				if backpack then
-					for _, v in ipairs(backpack:GetChildren()) do
-						if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
-					end
-				end
+                local toolsData = {}
+
+                -- 1. On fouille dans le personnage (objet tenu en main)
+                for _, v in ipairs(char:GetChildren()) do
+                    -- Ajout de la condition : v.Name ~= "FISTS"
+                    if (v:IsA("Tool") or v:IsA("HopperBin")) and v.Name ~= "FISTS" and #toolsData < 4 then 
+                        table.insert(toolsData, v) 
+                    end
+                end
+
+                -- 2. On fouille dans le sac à dos (objets rangés)
+                local backpack = player:FindFirstChild("Backpack")
+                if backpack then
+                    for _, v in ipairs(backpack:GetChildren()) do
+                        -- Ajout de la même condition ici
+                        if (v:IsA("Tool") or v:IsA("HopperBin")) and v.Name ~= "FISTS" and #toolsData < 4 then 
+                            table.insert(toolsData, v) 
+                        end
+                    end
+                end
 
 				if #toolsData > 0 then
 					toolContainer.Visible = true
