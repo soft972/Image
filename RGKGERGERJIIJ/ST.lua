@@ -865,49 +865,17 @@ local function CreateESP(player)
 			local root = char.HumanoidRootPart
 			local humanoid = char:FindFirstChild("Humanoid")
 			local pos, screen = Camera:WorldToViewportPoint(root.Position)
-            -- À placer au début de ton script (en dehors de ta boucle)
-            local cheaterStrikes = {} -- Enregistre le nombre de fois où le joueur dépasse la limite
-            local MAX_STRIKES = 3 -- Au bout de 3 anomalies consécutives, il est marqué comme tricheur
 
-            -- La limite de vitesse tolérée (Course = 24, on met 30 pour la marge d'erreur physique/lag)
-            local MAX_HORIZONTAL_SPEED = 30
-            local MAX_VERTICAL_SPEED = 50
+			if cheaterDetectionEnabled and humanoid and not humanoid.Sit then
+				local hrpVel = root.Velocity
+				local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
+				local verticalSpeed = hrpVel.Y
 
-            -- À l'intérieur de ta boucle de vérification :
-            if cheaterDetectionEnabled and humanoid then
-                
-                -- 1. On s'assure que le joueur n'est PAS dans un véhicule (Assis)
-                if not humanoid.Sit then
-                    local hrpVel = root.Velocity
-                    local horizontalSpeed = Vector3.new(hrpVel.X, 0, hrpVel.Z).Magnitude
-                    local verticalSpeed = hrpVel.Y
-            
-                    -- 2. On vérifie si la vitesse est anormale
-                    if horizontalSpeed > MAX_HORIZONTAL_SPEED or verticalSpeed > MAX_VERTICAL_SPEED then 
-                        
-                        -- On ajoute un "strike" au joueur
-                        cheaterStrikes[player] = (cheaterStrikes[player] or 0) + 1
-                        
-                        -- Si le joueur dépasse la limite plusieurs fois (MAX_STRIKES), il est marqué
-                        if cheaterStrikes[player] >= MAX_STRIKES then
-                            markedCheaters[player] = true
-                        end
-                        
-                    else
-                        -- S'il ne triche pas sur cette vérification, on baisse ses strikes.
-                        -- Ça permet d'effacer les erreurs dues à un simple coup de lag.
-                        if cheaterStrikes[player] and cheaterStrikes[player] > 0 then
-                            cheaterStrikes[player] = cheaterStrikes[player] - 1
-                        end
-                    end
-                    
-                else
-                    -- Le joueur EST dans un véhicule (Sit = true).
-                    -- On l'ignore complètement et on remet ses strikes à 0 au cas où.
-                    cheaterStrikes[player] = 0
-                end
-            end
-			                 
+				if horizontalSpeed > 24 or verticalSpeed > 50 then 
+					markedCheaters[player] = true
+				end
+			end
+
 			if espBoxEnabled and screen then
 				box.Visible = true; box.Color = activeColor
 				box.Size = Vector2.new(2000 / pos.Z, 3000 / pos.Z)
@@ -936,64 +904,48 @@ local function CreateESP(player)
 					end
 				end
 
-				-- === PLAN A : ON FILTRE LA LISTE AVANT L'AFFICHAGE ===
-                local filteredTools = {}
-                for _, tool in ipairs(toolsData) do
-                    -- Si l'outil ne s'appelle pas FISTS, on le garde pour l'afficher
-                    if tool.Name ~= "FISTS" then
-                        table.insert(filteredTools, tool)
-                    end
-                end
-                toolsData = filteredTools
-                -- =====================================================
+				if #toolsData > 0 then
+					toolContainer.Visible = true
+					toolContainer.Position = UDim2.new(0, pos.X, 0, box.Position.Y + box.Size.Y + 5)
 
-                if #toolsData > 0 then
-                    toolContainer.Visible = true
-                    toolContainer.Position = UDim2.new(0, pos.X, 0, box.Position.Y + box.Size.Y + 5)
-                
-                    for i = 1, 4 do
-                        local tool = toolsData[i]
-                        local slotData = toolSlots[i]
-                        
-                        -- On rajoute une sécurité ici : "if tool and tool.Name ~= 'FISTS' then"
-                        if tool and tool.Name ~= "FISTS" then
-                            slotData.slot.Visible = true
-                
-                            local realName, realTexture = matchToolName(tool)
-                
-                            if string.match(realName, "^%d+$") then
-                                if tool:FindFirstChild("ToolTip") and tool.ToolTip.Value ~= "" and not string.match(tool.ToolTip.Value, "^%d+$") then
-                                    realName = tool.ToolTip.Value
-                               else
-                                    realName = tool.Name
-                                end
-                            end
-                
-                            -- Dernière sécurité au cas où le "realName" serait transformé en FISTS
-                            if realName == "FISTS" then
-                                slotData.slot.Visible = false
-                            else
-                                slotData.txt.Text = realName
-                                slotData.stroke.Color = getToolRarityColor(realName)
-                
-                                if realTexture and realTexture ~= "" then
-                                    if string.match(realTexture, "^%d+$") then
-                                        slotData.img.Image = "rbxassetid://" .. realTexture
-                                    else
-                                        slotData.img.Image = realTexture
-                                    end
-                                else
-                                    slotData.img.Image = "rbxassetid://4483345998"
-                                end
-                            end
-                
-                        else
-                            slotData.slot.Visible = false
-                        end
-                    end
-                else
-                    toolContainer.Visible = false
-                end
+					for i = 1, 4 do
+						local tool = toolsData[i]
+						local slotData = toolSlots[i]
+						if tool then
+							slotData.slot.Visible = true
+
+							local realName, realTexture = matchToolName(tool)
+
+							if string.match(realName, "^%d+$") then
+								if tool:FindFirstChild("ToolTip") and tool.ToolTip.Value ~= "" and not string.match(tool.ToolTip.Value, "^%d+$") then
+									realName = tool.ToolTip.Value
+								else
+									realName = tool.Name
+								end
+							end
+
+							slotData.txt.Text = realName
+							slotData.stroke.Color = getToolRarityColor(realName)
+
+							if realTexture and realTexture ~= "" then
+								if string.match(realTexture, "^%d+$") then
+									slotData.img.Image = "rbxassetid://" .. realTexture
+								else
+									slotData.img.Image = realTexture
+								end
+							else
+								slotData.img.Image = "rbxassetid://4483345998"
+							end
+						else
+							slotData.slot.Visible = false
+						end
+					end
+				else
+					toolContainer.Visible = false
+				end
+			else
+				box.Visible = false; info.Visible = false; toolContainer.Visible = false; cheaterLabel.Visible = false
+			end
 
 			if espSkeletonEnabled and screen then
 				local isR15 = char:FindFirstChild("UpperTorso") ~= nil
@@ -1140,3 +1092,39 @@ soronice:Notify({
    Duration = 5,
    Image = 71401779636326,
 })
+-- ==========================================
+-- PLAN B : DESTRUCTEUR LOCAL D'OUTIL "FISTS"
+-- ==========================================
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+
+    -- Boucle qui tourne en arrière-plan sans bloquer le reste de ton code
+    while task.wait(0.5) do 
+        for _, player in ipairs(Players:GetPlayers()) do
+            
+            -- On vérifie que ce n'est PAS toi (pour ne pas supprimer tes propres FISTS)
+            if player ~= localPlayer then
+                
+                -- 1. On cherche et on supprime "FISTS" dans ses mains (Character)
+                if player.Character then
+                    local fistsInHand = player.Character:FindFirstChild("FISTS")
+                    if fistsInHand then
+                        fistsInHand:Destroy()
+                    end
+                end
+                
+                -- 2. On cherche et on supprime "FISTS" dans son inventaire (Backpack)
+                local backpack = player:FindFirstChild("Backpack")
+                if backpack then
+                    local fistsInBackpack = backpack:FindFirstChild("FISTS")
+                    if fistsInBackpack then
+                        fistsInBackpack:Destroy()
+                    end
+                end
+                
+            end
+        end
+    end
+end)
+-- ==========================================
