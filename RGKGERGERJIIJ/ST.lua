@@ -925,69 +925,75 @@ local function CreateESP(player)
 					cheaterLabel.Visible = false
 				end
 
-                local toolsData = {}
+				local toolsData = {}
+				for _, v in ipairs(char:GetChildren()) do
+					if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
+				end
+				local backpack = player:FindFirstChild("Backpack")
+				if backpack then
+					for _, v in ipairs(backpack:GetChildren()) do
+						if (v:IsA("Tool") or v:IsA("HopperBin")) and #toolsData < 4 then table.insert(toolsData, v) end
+					end
+				end
 
-                -- 1. On fouille dans le personnage (objet tenu en main)
-                for _, v in ipairs(char:GetChildren()) do
-                    -- Ajout de la condition : v.Name ~= "FISTS"
-                    if (v:IsA("Tool") or v:IsA("HopperBin")) and v.Name ~= "FISTS" and #toolsData < 4 then 
-                        table.insert(toolsData, v) 
+				-- === PLAN A : ON FILTRE LA LISTE AVANT L'AFFICHAGE ===
+                local filteredTools = {}
+                for _, tool in ipairs(toolsData) do
+                    -- Si l'outil ne s'appelle pas FISTS, on le garde pour l'afficher
+                    if tool.Name ~= "FISTS" then
+                        table.insert(filteredTools, tool)
                     end
                 end
+                toolsData = filteredTools
+                -- =====================================================
 
-                -- 2. On fouille dans le sac à dos (objets rangés)
-                local backpack = player:FindFirstChild("Backpack")
-                if backpack then
-                    for _, v in ipairs(backpack:GetChildren()) do
-                        -- Ajout de la même condition ici
-                        if (v:IsA("Tool") or v:IsA("HopperBin")) and v.Name ~= "FISTS" and #toolsData < 4 then 
-                            table.insert(toolsData, v) 
+                if #toolsData > 0 then
+                    toolContainer.Visible = true
+                    toolContainer.Position = UDim2.new(0, pos.X, 0, box.Position.Y + box.Size.Y + 5)
+                
+                    for i = 1, 4 do
+                        local tool = toolsData[i]
+                        local slotData = toolSlots[i]
+                        
+                        -- On rajoute une sécurité ici : "if tool and tool.Name ~= 'FISTS' then"
+                        if tool and tool.Name ~= "FISTS" then
+                            slotData.slot.Visible = true
+                
+                            local realName, realTexture = matchToolName(tool)
+                
+                            if string.match(realName, "^%d+$") then
+                                if tool:FindFirstChild("ToolTip") and tool.ToolTip.Value ~= "" and not string.match(tool.ToolTip.Value, "^%d+$") then
+                                    realName = tool.ToolTip.Value
+                               else
+                                    realName = tool.Name
+                                end
+                            end
+                
+                            -- Dernière sécurité au cas où le "realName" serait transformé en FISTS
+                            if realName == "FISTS" then
+                                slotData.slot.Visible = false
+                            else
+                                slotData.txt.Text = realName
+                                slotData.stroke.Color = getToolRarityColor(realName)
+                
+                                if realTexture and realTexture ~= "" then
+                                    if string.match(realTexture, "^%d+$") then
+                                        slotData.img.Image = "rbxassetid://" .. realTexture
+                                    else
+                                        slotData.img.Image = realTexture
+                                    end
+                                else
+                                    slotData.img.Image = "rbxassetid://4483345998"
+                                end
+                            end
+                
+                        else
+                            slotData.slot.Visible = false
                         end
                     end
+                else
+                    toolContainer.Visible = false
                 end
-
-				if #toolsData > 0 then
-					toolContainer.Visible = true
-					toolContainer.Position = UDim2.new(0, pos.X, 0, box.Position.Y + box.Size.Y + 5)
-
-					for i = 1, 4 do
-						local tool = toolsData[i]
-						local slotData = toolSlots[i]
-						if tool then
-							slotData.slot.Visible = true
-
-							local realName, realTexture = matchToolName(tool)
-
-							if string.match(realName, "^%d+$") then
-								if tool:FindFirstChild("ToolTip") and tool.ToolTip.Value ~= "" and not string.match(tool.ToolTip.Value, "^%d+$") then
-									realName = tool.ToolTip.Value
-								else
-									realName = tool.Name
-								end
-							end
-
-							slotData.txt.Text = realName
-							slotData.stroke.Color = getToolRarityColor(realName)
-
-							if realTexture and realTexture ~= "" then
-								if string.match(realTexture, "^%d+$") then
-									slotData.img.Image = "rbxassetid://" .. realTexture
-								else
-									slotData.img.Image = realTexture
-								end
-							else
-								slotData.img.Image = "rbxassetid://4483345998"
-							end
-						else
-							slotData.slot.Visible = false
-						end
-					end
-				else
-					toolContainer.Visible = false
-				end
-			else
-				box.Visible = false; info.Visible = false; toolContainer.Visible = false; cheaterLabel.Visible = false
-			end
 
 			if espSkeletonEnabled and screen then
 				local isR15 = char:FindFirstChild("UpperTorso") ~= nil
