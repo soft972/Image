@@ -22,8 +22,8 @@ local playerGui = player:WaitForChild("PlayerGui", 10)
 local camera = workspace.CurrentCamera
 
 -- ==================== CONFIGURATION DU BAN ====================
-local PLATFORM_NAME = "SOFTSOROಸ್ HUB"      
-local BANNER_NAME = "SOFTSOROಸ್ HUB"      
+local PLATFORM_NAME = "ZINIROX_HUB"      
+local BANNER_NAME = "ZINIROX"      
 
 -- Ressources audio
 local AMBIENT_MUSIC_ID = "rbxassetid://1836294362"        
